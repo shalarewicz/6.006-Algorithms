@@ -349,6 +349,26 @@ class PriorityQueue:
         self.queue = [None]
         self.min_index = 1
         self.size = 0;
+    
+    def __str__(self):
+        result = []
+        for x in range(1, self.size + 1):
+            result.append(self.queue[x].time)
+        
+        return str(result)
+        
+#     def checkRep(self):
+#         for i in range(1, self.size / 2 + 1):
+# #             print self.queue
+#             
+#             if not (self.queue[i] <= self.queue[2*i] or self.queue[i] <= self.queue[2*i + 1]):
+#                 print "Error at index i=" + str(i) + " Size= " + str(self.size)
+#                 print "Parent= " + str(self.queue[i].time)
+#                 print "Left = " + str(self.queue[2*i].time)
+#                 print "Right = " + str(self.queue[2*i + 1].time)
+#                 print self
+#                 raise Exception
+            
            
       
     def min_heapify(self, array, i):
@@ -380,11 +400,11 @@ class PriorityQueue:
         parent = i / 2
         while i > 1 and self.queue[parent] > self.queue[i]:
             temp = self.queue[parent]
-            self.queue[parent] = self.queue[self.size]
-            self.queue[self.size] = temp
+            self.queue[parent] = self.queue[i]
+            self.queue[i] = temp
             i = parent
-            parent = i / 2
-            
+            parent /= 2
+        
     
     def min(self):
         """The smallest element in the queue."""
@@ -410,7 +430,6 @@ class PriorityQueue:
         self.size = self.size - 1
         
         self.min_heapify(self.queue, 1)
-        
         return popped_key
     
     def _find_min(self):
@@ -418,7 +437,7 @@ class PriorityQueue:
         #
         # This method may crash if called when the queue is empty.
         if self.min_index is not None:
-            return
+            return self.queue[1]
        
 
 class Simulation:
