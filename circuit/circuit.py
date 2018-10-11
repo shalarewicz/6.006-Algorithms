@@ -4,6 +4,8 @@ import json   # Used when TRACE=jsonp
 import os     # Used to get the TRACE environment variable
 import re     # Used when TRACE=jsonp
 import sys    # Used to smooth over the range / xrange issue.
+from _heapq import nsmallest
+from pyasn1.compat.octets import null
 
 # Python 3 doesn't have xrange, and range behaves like xrange.
 if sys.version_info >= (3,):
@@ -344,25 +346,50 @@ class PriorityQueue:
     """Array-based priority queue implementation."""
     def __init__(self):
         """Initially empty priority queue."""
-        self.queue = []
-        self.min_index = None
-    
+        self.queue = [None]
+        self.min_index = 1
+        self.size = 0;
+           
+      
+    def min_heapify(self, array, i):
+        left = 2*i
+        right = 2*i + 1
+        smallest = i
+        
+        if (left <= self.size and self.queue[left] < self.queue[i]):
+            smallest = left
+        if (right <= self.size and self.queue[right] < self.queue[smallest]):
+            smallest = right
+        if not smallest == i: 
+            temp = self.queue[i]
+            self.queue[i] = self.queue[smallest]
+            self.queue[smallest] = temp
+            self.min_heapify(array, smallest)
+            
     def __len__(self):
         # Number of elements in the queue.
-        return len(self.queue)
+        return self.size
     
     def append(self, key):
         """Inserts an element in the priority queue."""
         if key is None:
             raise ValueError('Cannot insert None in the queue')
         self.queue.append(key)
-        self.min_index = None
+        self.size += 1
+        i = self.size
+        parent = i / 2
+        while i > 1 and self.queue[parent] > self.queue[i]:
+            temp = self.queue[parent]
+            self.queue[parent] = self.queue[self.size]
+            self.queue[self.size] = temp
+            i = parent
+            parent = i / 2
+            
     
     def min(self):
         """The smallest element in the queue."""
-        if len(self.queue) == 0:
+        if self.size == 0:
             return None
-        self._find_min()
         return self.queue[self.min_index]
     
     def pop(self):
@@ -371,11 +398,19 @@ class PriorityQueue:
         Returns:
             The value of the removed element.
         """
-        if len(self.queue) == 0:
+        
+        if self.size == 0:
             return None
-        self._find_min()
-        popped_key = self.queue.pop(self.min_index)
-        self.min_index = None
+        # Exchange first and last key
+        popped_key = self.queue[self.min_index]
+        
+        self.queue[self.min_index] = self.queue[self.size]
+        del self.queue[self.size]
+        
+        self.size = self.size - 1
+        
+        self.min_heapify(self.queue, 1)
+        
         return popped_key
     
     def _find_min(self):
@@ -384,13 +419,7 @@ class PriorityQueue:
         # This method may crash if called when the queue is empty.
         if self.min_index is not None:
             return
-        min = self.queue[0]
-        self.min_index = 0
-        for i in xrange(1, len(self.queue)):
-            key = self.queue[i]
-            if key < min:
-                min = key
-                self.min_index = i
+       
 
 class Simulation:
     """State needed to compute a circuit's state as it evolves over time."""
