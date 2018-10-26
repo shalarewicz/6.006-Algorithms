@@ -4,6 +4,7 @@ import json   # Used when TRACE=jsonp
 import os     # Used to get the TRACE environment variable
 import re     # Used when TRACE=jsonp
 import sys    # Used to smooth over the range / xrange issue.
+import bst
 
 # Python 3 doesn't have xrange, and range behaves like xrange.
 if sys.version_info >= (3,):
@@ -137,34 +138,62 @@ class WireLayer(object):
       
     return layer
 
+
 class RangeIndex(object):
   """Array-based range index implementation."""
   
   def __init__(self):
     """Initially empty range index."""
-    self.data = []
+    self.data = bst.BST()
   
   def add(self, key):
     """Inserts a key in the range index."""
-    if key is None:
-        raise ValueError('Cannot insert nil in the index')
-    self.data.append(key)
+ 
+    self.data.insert(key)
+#     if key is None:
+#         raise ValueError('Cannot insert nil in the index')
+#     self.data.append(key)
   
   def remove(self, key):
     """Removes a key from the range index."""
-    self.data.remove(key)
-  
+    self.data.delete(self.data.find(key))
+#     self.data.remove(key)
+
+
+  @staticmethod
+  def node_list(node, low, high, acc):
+     if node is None:
+         return
+     if low <= node.key <= high:
+         acc.append(node.key)
+     if node.key >= low:
+         RangeIndex.node_list(node.left, low, high, acc)
+     if node.key <= high:
+         RangeIndex.node_list(node.right, low, high, acc)
+
   def list(self, first_key, last_key):
-    """List of values for the keys that fall within [first_key, last_key]."""
-    return [key for key in self.data if first_key <= key <= last_key]
+      """List of values for the keys that fall within [first_key, last_key]."""
+      lca = self.data.lca(first_key, last_key)
+      r = []
+      RangeIndex.node_list(lca, first_key, last_key, r)
+      return r
+      #   return [key for key in self.data if first_key <= key <= last_key]
+ 
   
   def count(self, first_key, last_key):
     """Number of keys that fall within [first_key, last_key]."""
-    result = 0
-    for key in self.data:
-      if first_key <= key <= last_key:
-        result += 1
-    return result
+ #   result = 0
+    low = self.data.find(first_key) 
+
+    if low is not None:
+        return self.data.rank(last_key) - self.data.rank(first_key) + 1
+    else:
+        return self.data.rank(last_key) - self.data.rank(first_key)
+        
+#     for key in self.data:
+#       if first_key <= key <= last_key:
+#         result += 1
+  #  return result
   
 class TracedRangeIndex(RangeIndex):
   """Augments RangeIndex to build a trace for the visualizer."""
@@ -313,14 +342,14 @@ class CrossVerifier(object):
   def count_crossings(self):
     """Returns the number of pairs of wires that cross each other."""
     if self.performed:
-      raise 
+      raise  ValueError
     self.performed = True
     return self._compute_crossings(True)
 
   def wire_crossings(self):
     """An array of pairs of wires that cross each other."""
     if self.performed:
-      raise 
+      raise ValueError
     self.performed = True
     return self._compute_crossings(False)
 
@@ -329,7 +358,8 @@ class CrossVerifier(object):
     left_edge = min([wire.x1 for wire in layer.wires.values()])
     for wire in layer.wires.values():
       if wire.is_horizontal():
-        self.events.append([left_edge, 0, wire.object_id, 'add', wire])
+        self.events.append([wire.x1, 0, wire.object_id, 'add', wire]) # event[1] is processing priority
+        self.events.append([wire.x2, 2, wire.object_id, 'remove', wire])
       else:
         self.events.append([wire.x1, 1, wire.object_id, 'query', wire])
 
@@ -342,25 +372,21 @@ class CrossVerifier(object):
 
     for event in self.events:
       event_x, event_type, wire = event[0], event[3], event[4]
+      self.trace_sweep_line(event_x)
       
       if event_type == 'add':
         self.index.add(KeyWirePair(wire.y1, wire))
+      elif event_type == 'remove': 
+        self.index.remove(KeyWirePair(wire.y1, wire))
       elif event_type == 'query':
-        self.trace_sweep_line(event_x)
-        cross_wires = []
-        for kwp in self.index.list(KeyWirePairL(wire.y1),
-                                   KeyWirePairH(wire.y2)):
-          if wire.intersects(kwp.wire):
-            cross_wires.append(kwp.wire)
-        if count_only:
-          result += len(cross_wires)
-        else:
-          for cross_wire in cross_wires:
-            result.add_crossing(wire, cross_wire)
-
+          if count_only: 
+              result += self.index.count(KeyWirePairL(wire.y1), KeyWirePairH(wire.y2))
+          else:
+            for kwp in self.index.list(KeyWirePairL(wire.y1), KeyWirePairH(wire.y2)):
+                result.add_crossing(wire, kwp.wire)
     return result
   
-  def trace_sweep_line(self, x):
+  def trace_sweep_line(self, x,):
     """When tracing is enabled, adds info about where the sweep line is.
     
     Args:
@@ -402,3 +428,17 @@ if __name__ == '__main__':
       verifier.wire_crossings().write_to_file(sys.stdout)
     else:
       sys.stdout.write(str(verifier.count_crossings()) + "\n")
+      
+      
+      
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
