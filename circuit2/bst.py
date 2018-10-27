@@ -1,10 +1,8 @@
-import random
-
-
 class BSTNode:
     def __init__(self, key):
         self.key = key
         self.size = 1
+        self.height = 0
         self.disconnect()
 
     def disconnect(self):
@@ -34,12 +32,20 @@ class BST:
     def __init__(self):
         self.root = None
 
-    def check_rep(self):
-        sorted_list = []
-        BST.in_order_walk(self.root, sorted_list)
-        for i in range(1, len(sorted_list)):
-            x = 0
-            # assert sorted_list[i - 1] <= sorted_list[i]
+    def check_rep(self, root):
+        lsize = size(root.left)
+        rsize = size(root.right)
+        if root.size is not lsize + rsize + 1:
+            raise RuntimeError("BST Rep invalidated by size")
+
+        lkey = root.left.key if root.left is not None else None
+        rkey = root.right.key if root.right is not None else None
+        if lkey > root.key or rkey < root.key:
+            raise RuntimeError("BST propery invalid")
+        if root.left:
+            self.check_rep(root.left)
+        if root.right:
+            self.check_rep(root.right)
 
     @staticmethod
     def in_order_walk(root, result):
@@ -83,11 +89,14 @@ class BST:
                     current = current.right
 
         # Update the size
-        while node is not None:
-            update_size(node)
-            node = node.parent
+        current = node
+        while current is not None:
+            update_size(current)
+            current = current.parent
 
-        # self.check_rep()
+        return node
+
+        # self.check_rep(self.root)
 
     def find(self, key):
         """Return the node for key if is in the tree, or None otherwise.
@@ -129,7 +138,8 @@ class BST:
           Args:
            node: value being removed from the tree
         """
-
+        if node is None:
+            return None, None
         original = node.parent
 
         if node.left is None:
@@ -141,7 +151,7 @@ class BST:
             original = x.parent
             if not x == node.right:
                 self.transplant(x, x.right)
-                x.right = node.right # Move successor into the delete note's spot (right only)
+                x.right = node.right  # Move successor into the delete note's spot (right only)
                 x.right.parent = x
             self.transplant(node, x)
             x.left = node.left
@@ -153,10 +163,11 @@ class BST:
         while current is not None:
             update_size(current)
             current = current.parent
-
+        parent = node.parent
         node.disconnect()
+        return node, parent
 
-        # self.check_rep()
+        # self.check_rep(self.root)
 
     @staticmethod
     def min(x):
@@ -248,7 +259,6 @@ class BST:
 
     def count(self, first_key, last_key):
         """Number of keys that fall within [first_key, last_key]."""
-        #   result = 0
         low = self.find(first_key)
 
         if low is not None:
@@ -257,11 +267,13 @@ class BST:
             return self.rank(last_key) - self.rank(first_key)
 
     def __str__(self):
-        if self.root is None: return '<empty tree>'
+        if self.root is None:
+            return '<empty tree>'
 
         def recurse(node):
-            if node is None: return [], 0, 0
-            label = str(node.key) + "("+str(size(node))+")"
+            if node is None:
+                return [], 0, 0
+            label = str(node.key) + "(s="+str(size(node))+", h=" + str(height(node)) + ")"
             left_lines, left_pos, left_width = recurse(node.left)
             right_lines, right_pos, right_width = recurse(node.right)
             middle = max(right_pos + left_width - left_pos + 1, len(label), 2)
@@ -275,8 +287,10 @@ class BST:
                     node is node.parent.left and len(label) < middle:
                 label += '.'
             label = label.center(middle, '.')
-            if label[0] == '.': label = ' ' + label[1:]
-            if label[-1] == '.': label = label[:-1] + ' '
+            if label[0] == '.':
+                label = ' ' + label[1:]
+            if label[-1] == '.':
+                label = label[:-1] + ' '
             lines = [' ' * left_pos + label + ' ' * (right_width - right_pos),
                      ' ' * left_pos + '/' + ' ' * (middle - 2) +
                      '\\' + ' ' * (right_width - right_pos)] + \
@@ -287,82 +301,105 @@ class BST:
 
         return '\n'.join(recurse(self.root)[0])
 
-    # def testTree(self):
-    #     self.insert(10)
-    #     self.insert(5)
-    #     self.insert(7)
-    #     self.insert(9)
-    #     self.insert(14)
-    #     self.insert(22)
-    #     self.insert(24)
-    #     self.insert(17)
-    #     self.insert(8)
-    #     self.insert(2)
-    #     self.insert(14)
-    #     return self
-
-
-# x = BST()
-# # x = RangeIndex()
-# low, high = 17, 22
-#
-#
-# test = []
-# for i in range(0,100, 1):
-#     test.append(i)
-#
-# random.shuffle(test)
-#
-# for item in test:
-#     x.insert(item)
-#
-# print(x)
-#
-#
-# for j in range(0,100):
-#     # print "Rank " + str(j) + " = " + str(x.rank(j))
-#     assert x.rank(j) == j + 1
-#
-#
-#
-# assert x.count(3.5,97.5) == 94
-#
-# while True:
-#     node = x.root
-#     sizeLeft, sizeRight = 0, 0
-#     if node.left: sizeLeft = size(node.left)
-#     if node.right: sizeRight = size(node.right)
-#
-#     assert size(x.root) == sizeRight + sizeLeft + 1
-#     # if node.left:
-#     #     node = node.left
-#     # if node.right:
-#     #     node = node.right
-#
-#
-# x.delete(x.find(97))
-# print x
 
 def height(node):
-    if node: return node.height
-    else: return -1
+    if node is not None:
+        return node.height
+    else:
+        return -1
+
 
 def update_height(node):
-    node.height = max(height(node.left), height(node.right))
+    node.height = max(height(node.left), height(node.right)) + 1
 
-class AVLNode:
-    def __init__(self):
-        self.height
 
 class AVLTree(BST):
 
-    def left_rotate(self):
-        raise RuntimeError
-    def right_rotate(self):
-        raise RuntimeError
+    def __init__(self):
+        BST.__init__(self)
+
+    def check_rep(self):
+        root = self.root
+        if root is not None:
+            lheight = height(root.left)
+            rheight = height(root.right)
+            if height(root) is not max(lheight, rheight) + 1:
+                raise(RuntimeError("AVL rep violated. Height of tree not max + 1"))
+
+    def left_rotate(self, x):
+        y = x.right
+        x.right = y.left
+        if y.left is not None:
+            y.left.parent = x
+        y.parent = x.parent
+        if x.parent is None:
+            self.root = y
+        elif x.parent.left == x:
+            x.parent.left = y
+        else:
+            x.parent.right = y
+        y.left = x
+        x.parent = y
+
+        update_size(x)
+        update_size(y)
+
+        update_height(x)
+        update_height(y)
+        # self.check_rep()
+
+    def right_rotate(self, y):
+        x = y.left
+        y.left = x.right
+        if x.right is not None:
+            x.right.parent = y
+        x.parent = y.parent
+        if y.parent is None:
+            self.root = x
+        elif y.parent.left == y:
+            y.parent.left = x
+        else:
+            y.parent.right = x
+        x.right = y
+        y.parent = x
+
+        update_size(y)
+        update_size(x)
+
+        update_height(y)
+        update_height(x)
+        # self.check_rep()
+
     def insert(self, key):
-        raise RuntimeError
-    def rebalance(self):
-        raise RuntimeError
+        node = BST.insert(self, key)
+        self.rebalance(node)
+
+    def rebalance(self, node):
+        while node is not None:
+            update_height(node)
+            if height(node.left) >= 2 + height(node.right):
+                # left heavy
+                if height(node.left.left) >= height(node.left.right):
+                    self.right_rotate(node)
+                else:
+                    self.left_rotate(node.left)
+                    self.right_rotate(node)
+            elif height(node.right) >= 2 + height(node.left):
+                if height(node.right.right) >= height(node.right.left):
+                    self.left_rotate(node)
+                else:
+                    self.right_rotate(node.right)
+                    self.left_rotate(node)
+            node = node.parent
+
+        # self.check_rep()
+
     def delete(self, key):
-        raise RuntimeError
+        node, parent = BST.delete(self, key)
+        self.rebalance(parent)
+
+    def find(self, key):
+        return BST.find(self, key)
+
+    def rank(self, key):
+        return BST.rank(self, key)
