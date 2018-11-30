@@ -12,44 +12,75 @@ class Multidict:
     # Initializes a new multi-value dictionary, and adds any key-value
     # 2-tuples in the iterable sequence pairs to the data structure.
     def __init__(self, pairs=[]):
-        raise Exception("Not implemented!")
+        self.dict = {}
+        for (key, value) in pairs:
+            self.put(key, value)
 
     # Associates the value v with the key k.
     def put(self, k, v):
-        raise Exception("Not implemented!")
+        if self.dict.has_key(k):
+            self.dict[k].append(v)
+        else:
+            self.dict[k] = [v]
 
     # Gets any values that have been associated with the key k; or, if
     # none have been, returns an empty sequence.
     def get(self, k):
-        raise Exception("Not implemented!")
+        values = self.dict.get(k)
+        if values is None:
+            return []
+        else:
+            return values
 
+    def keys(self):
+        return self.dict.keys()
 
 # Given a sequence of nucleotides, return all k-length subsequences
 # and their hashes.  (What else do you need to know about each
 # subsequence?)
 def subsequenceHashes(seq, k):
 
-    if k > getSequenceLength(seq):
-        raise RuntimeError("Subsequence cannot be longer than sequence")
+    if k < 0:
+        raise RuntimeError("Subsequence cannot have negative length")
 
-    gen = subsequences(FastaSequence(seq), k)
-    # Build the initial sequence and initiate a rolling hash
-    subseq = next(gen)
+    subseq = ''
+    for i in range(0,k):
+        subseq += next(seq)
     h = RollingHash(subseq)
 
+    index = 0
     while True:
-        yield subseq, h.current_hash()
-        old = subseq[0]
-        subseq = next(gen)
-        new = subseq[k-1]
-        h.slide(old, new)
+        try:
+            yield subseq, h.current_hash(), index
+            c = next(seq)
+            h.slide(subseq[0], c)
+            subseq = subseq[1:k] + c
+            index += 1
+        except StopIteration:
+            break
 
 
 # Similar to subsequenceHashes(), but returns one k-length subsequence
 # every m nucleotides.  (This will be useful when you try to use two
 # whole data files.)
 def intervalSubsequenceHashes(seq, k, m):
-    raise Exception("Not implemented!")
+    if k < 0:
+        raise RuntimeError("Subsequence cannot have negative length")
+    if m < k:
+        raise RuntimeError("Subsequence length must be less than the interval, m")
+    else:
+        j = 0
+        while True:
+            subseq = ''
+            try:
+                for i in range(0, k):
+                    subseq += next(seq)
+                yield subseq, RollingHash(subseq).current_hash(), j
+                for i in range(0, m-k):
+                    next(seq)
+                j += m
+            except StopIteration:
+                break
 
 
 # Searches for commonalities between sequences a and b by comparing
@@ -57,7 +88,31 @@ def intervalSubsequenceHashes(seq, k, m):
 # that return nucleotides.  The table is built by computing one hash
 # every m nucleotides (for m >= k).
 def getExactSubmatches(a, b, k, m):
-    raise Exception("Not implemented!")
+    seqA = intervalSubsequenceHashes(a, k, m)
+    # seqA = subsequenceHashes(a, k)
+    seqB = subsequenceHashes(b, k)
+    dictA = Multidict([])
+    dictB = Multidict([])
+
+    while True:
+        try:
+            keyA, hashA, position = next(seqA)
+            dictA.put(hashA, position)
+        except StopIteration:
+            break
+
+    while True:
+        try:
+            keyB, hashB, position = next(seqB)
+            dictB.put(hashB, position)
+        except StopIteration:
+            break
+
+    for subseq in dictA.keys():
+        locationsInB = dictB.get(subseq)
+        for location in locationsInB:
+            for x in dictA.get(subseq):
+                yield (x, location)
 
 
 if __name__ == '__main__':
