@@ -7,6 +7,7 @@ from math import *
 from nhpn import *
 from priority_queue import *
 
+
 def distance(node1, node2):
     """Returns the distance between node1 and node2, ignoring the Earth's 
     curvature.
@@ -14,6 +15,7 @@ def distance(node1, node2):
     latitude_diff = node1.latitude - node2.latitude
     longitude_diff = node1.longitude - node2.longitude
     return (latitude_diff**2 + longitude_diff**2)**.5
+
 
 def distance_curved(node1, node2):
     """Returns the distance between node1 and node2, including the Earth's 
@@ -24,6 +26,7 @@ def distance_curved(node1, node2):
     C = node2.latitude * pi / 10**6 / 180
     D = node2.longitude * pi / 10**6 / 180
     return acos(sin(A) * sin(C) + cos(A) * cos(C) * cos(B - D))
+
 
 class NodeDistancePair(object):
     """Wraps a node and its distance representing it in the priority queue."""
@@ -57,7 +60,8 @@ class NodeDistancePair(object):
         return (self.distance > other.distance or
                 (self.distance == other.distance and 
                  id(self.node) >= id(other.node)))
-    
+
+
 class Network(object):
     """The National Highway Planning network."""
     def __init__(self):
@@ -195,8 +199,46 @@ class PathFinder(object):
             A tuple: (the path as a list of nodes from source to destination, 
                       the number of visited nodes)
         """
-        return NotImplemented 
-        
+
+        print "looking for path from ", source, " to ", destination
+        for node in nodes:
+            node.parent = None
+            node.key = None
+
+        source.key = NodeDistancePair(source, 0)
+        pq = PriorityQueue()
+        pq.insert(source.key)
+
+        num_visted = 0
+
+        while len(pq) > 0:
+            min = pq.extract_min()
+            num_visted += 1
+            if min.node is destination:
+                break
+
+            for v in min.node.adj:
+                w = weight(min.node, v)
+                if v.key is None:
+                    v.key = NodeDistancePair(v, min.distance + w)
+                    pq.insert(v.key)
+                    v.parent = min.node
+                elif w + min.distance < v.key.distance:
+                    v.key.distance = w + min.distance
+                    pq.decrease_key(v.key)
+                    v.parent = min.node
+
+        result = []
+        while destination is not None:
+            result.append(destination)
+            destination = destination.parent
+
+        result.reverse()
+        return result, num_visted
+
+
+
+
     @staticmethod
     def from_file(file, network):
         """Creates a PathFinder object with source and destination read from 
